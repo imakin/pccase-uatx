@@ -1,0 +1,33 @@
+#!/bin/bash
+
+# Max number of commits preserved
+MAX_COMMITS=2
+# First commit (HEAD~<number>) to be squashed
+let COMMIT_N=MAX_COMMITS-1
+
+# Date and time for commit message
+DATE=$(date +'%F %R')
+
+# Number of current commits
+CURRENT_COMMITS=$(git log --oneline|wc -l)
+
+if [ "${CURRENT_COMMITS}" -gt "${MAX_COMMITS}" ]; then
+
+    # Checkout a new branch 'temp' with the first commit to be squashed
+    git checkout -b temp HEAD~${COMMIT_N}
+
+    # Reset (soft) to the very first commit in history
+    git reset $(git rev-list --max-parents=0 --abbrev-commit HEAD)
+
+    # Add and commit (--amend) all the files
+    git add `git ls-tree --full-tree -r --name-only HEAD`
+    git commit --amend -m "Automatic squash on ${DATE}"
+
+    # Cherry pick all the non-squashed commits from 'master'
+    git cherry-pick master~${COMMIT_N}..master
+
+    # Delete the 'master' branch and rename the 'temp' to 'master'
+    git branch -D master
+    git branch -m master
+
+fi
